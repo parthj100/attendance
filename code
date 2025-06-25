@@ -1,0 +1,98 @@
+var token = "";     // 1. FILL IN YOUR OWN TOKEN
+var telegramUrl = "https://api.telegram.org/bot" + token;
+var webAppUrl = "https://script.google.com/macros/s//exec"; // 2. FILL IN YOUR GOOGLE WEB APP ADDRESS
+var ssId = "1OJ5JyqZbyXzno7c1mQfTXgpNY-9jML98ni1HoVClGFs";      // 3. FILL IN THE ID OF YOUR SPREADSHEET
+
+function getMe() {
+  var url = telegramUrl + "/getMe";
+  var response = UrlFetchApp.fetch(url);
+  Logger.log(response.getContentText());
+}
+
+function setWebhook() {
+  var url = telegramUrl + "/setWebhook?url=" + webAppUrl;
+  var response = UrlFetchApp.fetch(url);
+  Logger.log(response.getContentText());
+}
+
+function sendText(id, text) {
+  var url = telegramUrl + "/sendMessage?chat_id=" + id + "&text=" + encodeURIComponent(text);
+  var response = UrlFetchApp.fetch(url);
+  Logger.log(response.getContentText());
+}
+
+function doGet(e) {
+  return HtmlService.createHtmlOutput("Please interact with the bot on Telegram.");
+}
+
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var text = data.message.text;
+    var id = data.message.chat.id;
+
+    // Check if the message is to mark attendance for a group
+    if (/^\/markpresent\d+/.test(text)) {
+      var group = text.match(/^\/markpresent(\d+)/)[1];
+      sendText(id, "Attendance process initiated for Group " + group + ". Please enter the names of attendees separated by commas.");
+      PropertiesService.getScriptProperties().setProperty('current_group', group);
+    }
+    
+    // Check if the message is to clear attendance data
+    else if (/^\/clear/.test(text)) {
+      clearAttendanceData();
+      sendText(id, "Attendance data has been cleared for all groups.");
+    }
+
+    // Check if the message is to get the attendance summary
+    else if (/^\/summary/.test(text)) {
+      var date = Utilities.formatDate(new Date(), "EST", "MMMM d, yyyy");
+      var sheet = SpreadsheetApp.openById(ssId).getSheetByName('Group 0');
+      var group0Total = sheet ? sheet.getDataRange().getLastRow() - 1 : 0;
+      sheet = SpreadsheetApp.openById(ssId).getSheetByName('Group 1');
+      var group1Total = sheet ? sheet.getDataRange().getLastRow() - 1 : 0;
+      sheet = SpreadsheetApp.openById(ssId).getSheetByName('Group 2');
+      var group2Total = sheet ? sheet.getDataRange().getLastRow() - 1 : 0;
+      sheet = SpreadsheetApp.openById(ssId).getSheetByName('Group 3');
+      var group3Total = sheet ? sheet.getDataRange().getLastRow() - 1 : 0;
+      var mandalTotal = group0Total + group1Total + group2Total + group3Total;
+      var summary = date + ":\n\n";
+      summary += "Group 0: " + group0Total + "\n";
+      summary += "Group 1: " + group1Total + "\n";
+      summary += "Group 2: " + group2Total + "\n";
+      summary += "Group 3: " + group3Total + "\n";
+      summary += "——————————\n";
+      summary += "Mandal Total - " + mandalTotal + " Balaks";
+      sendText(id, summary);
+    }
+    // Check if the message is to mark attendance for the current group
+    else if (PropertiesService.getScriptProperties().getProperty('current_group')) {
+      var group = PropertiesService.getScriptProperties().getProperty('current_group');
+      var sheetName = "Group " + group;
+      var sheet = SpreadsheetApp.openById(ssId).getSheetByName(sheetName) ? SpreadsheetApp.openById(ssId).getSheetByName(sheetName) : SpreadsheetApp.openById(ssId).insertSheet(sheetName);
+      var allSheet = SpreadsheetApp.openById(ssId).getSheetByName("All") ? SpreadsheetApp.openById(ssId).getSheetByName("All") : SpreadsheetApp.openById(ssId).insertSheet("All");
+      var names = text.split(",");
+      var date = new Date();
+      var data = [];
+      for (var i = 0; i < names.length; i++) {
+        data.push([date, names[i], "Present"]);
+      }
+      sheet.getRange(sheet.getLastRow() + 1, 1, data.length, data[0].length).setValues(data);
+      allSheet.getRange(allSheet.getLastRow() + 1, 1, data.length, data[0].length).setValues(data);
+      sendText(id, names.join(", ") + " have been marked present for Group " + group + ".");
+    }
+  } catch(e) {
+    sendText(adminID, JSON.stringify(e,null,4));
+  }
+}
+
+function clearAttendanceData() {
+  var sheetNames = ["Group 0", "Group 1", "Group 2", "Group 3"];
+  for (var i = 0; i < sheetNames.length; i++) {
+    var sheet = SpreadsheetApp.openById(ssId).getSheetByName(sheetNames[i]);
+    if (sheet) {
+      sheet.getRange("A2:C").clearContent();
+    }
+  }
+}
+
