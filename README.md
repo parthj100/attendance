@@ -36,14 +36,13 @@ A lightweight Telegram bot built using **Google Apps Script** and **Google Sheet
 - Copy your **Bot Token**.
 
 ### 3. 💻 Set Up Google Apps Script
+
 - Go to [Google Apps Script](https://script.google.com)
 - Create a new project and paste in the full code from `Code.gs`
 - Replace the following:
-  ```javascript
   var token = "YOUR_BOT_TOKEN";
   var webAppUrl = "YOUR_WEB_APP_URL"; // leave blank for now
   var ssId = "YOUR_SPREADSHEET_ID";
-````
 
 ### 4. 🌐 Deploy the Web App
 
